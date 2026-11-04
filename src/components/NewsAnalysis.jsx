@@ -19,27 +19,28 @@ function NewsAnalysis({ analysis, resultText, reasons, education, labels }) {
           truePercentage={analysis.truePercentage}
           falsePercentage={analysis.falsePercentage}
           unidentifiedPercentage={analysis.unidentifiedPercentage}
+          label={labels.alertIndex}
         />
 
         <div className="legend">
           <div className="legend-item">
             <span className="dot true" />
             <div>
-              <strong>{labels.trueLabel}</strong>
+              <strong>{labels.noAlertLabel}</strong>
               <span>{analysis.truePercentage}%</span>
             </div>
           </div>
           <div className="legend-item">
             <span className="dot false" />
             <div>
-              <strong>{labels.falseLabel}</strong>
+              <strong>{labels.alertLabel}</strong>
               <span>{analysis.falsePercentage}%</span>
             </div>
           </div>
           <div className="legend-item">
             <span className="dot unidentified" />
             <div>
-              <strong>{labels.unidentifiedLabel}</strong>
+              <strong>{labels.unverifiedLabel}</strong>
               <span>{analysis.unidentifiedPercentage}%</span>
             </div>
           </div>
@@ -47,9 +48,10 @@ function NewsAnalysis({ analysis, resultText, reasons, education, labels }) {
       </div>
 
       <div className="analysis-main">
-        <div className="mvp-note">Resultado demonstrativo do MVP.</div>
+        <div className="mvp-note">{labels.limitation}</div>
         <div className="analysis-summary card">
           <h2>{labels.resultTitle}</h2>
+          <p className="analysis-result"><strong>{analysis.result}</strong></p>
           <p>{resultText}</p>
           <div className="meta-list">
             <div><span>{labels.sourceLabel}</span><strong>{analysis.source}</strong></div>

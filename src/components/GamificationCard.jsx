@@ -1,4 +1,4 @@
-function GamificationCard({ xp, totalXp, researches, hits, hitRate, labels }) {
+function GamificationCard({ xp, totalXp, researches, labels }) {
   return (
     <section className="card gamification-card">
       <div className="xp-row">
@@ -14,14 +14,6 @@ function GamificationCard({ xp, totalXp, researches, hits, hitRate, labels }) {
         <div className="mini-stat">
           <span>{labels.searches}</span>
           <strong>{researches}</strong>
-        </div>
-        <div className="mini-stat">
-          <span>{labels.hits}</span>
-          <strong>{hits}</strong>
-        </div>
-        <div className="mini-stat">
-          <span>{labels.hitRate}</span>
-          <strong>{hitRate}%</strong>
         </div>
       </div>
     </section>

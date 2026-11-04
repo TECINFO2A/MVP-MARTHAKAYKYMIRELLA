@@ -1,4 +1,4 @@
-function DonutChart({ percentage, truePercentage, falsePercentage, unidentifiedPercentage, size = 220, compact = false }) {
+function DonutChart({ percentage, truePercentage, falsePercentage, unidentifiedPercentage, label = 'Índice de confiabilidade', size = 220, compact = false }) {
   const radius = compact ? 32 : 72
   const circumference = 2 * Math.PI * radius
   const dashTrue = (truePercentage / 100) * circumference
@@ -37,7 +37,7 @@ function DonutChart({ percentage, truePercentage, falsePercentage, unidentifiedP
 
       <div className="donut-center">
         <div className="donut-percent">{percentage}%</div>
-        {!compact && <div className="donut-label">Índice de confiabilidade</div>}
+        {!compact && <div className="donut-label">{label}</div>}
       </div>
     </div>
   )

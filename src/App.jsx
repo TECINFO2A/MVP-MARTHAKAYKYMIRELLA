@@ -56,6 +56,17 @@ const translations = {
     analyzing: 'Analisando...',
     searchNewsLabel: 'Pesquisar notícia',
     recentSearchesSettings: 'Últimas pesquisas',
+    alertIndex: 'Sinais de alerta',
+    noAlertLabel: 'Sem sinal detectado',
+    alertLabel: 'Com sinais de alerta',
+    unverifiedLabel: 'Não verificado',
+    unknownSource: 'Não identificada',
+    unknownMetadata: 'Não informado',
+    linkNotRead: 'O link não foi aberto nem comparado com fontes de checagem. Cole o texto completo da notícia para analisar sinais de alerta.',
+    alertsFound: 'A análise encontrou sinais de alerta na linguagem. Isso recomenda cautela, mas não confirma que a notícia seja falsa.',
+    noAlertsFound: 'Não foram encontrados sinais comuns de alerta na linguagem. Isso não comprova que a notícia seja verdadeira.',
+    noTextClue: 'O texto não contém padrões comuns de linguagem sensacionalista ou urgente.',
+    limitation: 'Esta análise automática procura padrões no texto; não verifica os fatos em fontes externas. Links não são abertos.',
   },
   en: {
     home: 'Home',
@@ -100,6 +111,17 @@ const translations = {
     analyzing: 'Analyzing...',
     searchNewsLabel: 'Search news',
     recentSearchesSettings: 'Recent searches',
+    alertIndex: 'Warning signs',
+    noAlertLabel: 'No signs detected',
+    alertLabel: 'Warning signs found',
+    unverifiedLabel: 'Unverified',
+    unknownSource: 'Not identified',
+    unknownMetadata: 'Not provided',
+    linkNotRead: 'The link was not opened or checked against fact-checking sources. Paste the full article text to analyze warning signs.',
+    alertsFound: 'The analysis found warning signs in the wording. This calls for caution but does not confirm the story is false.',
+    noAlertsFound: 'No common warning signs were found in the wording. This does not prove the story is true.',
+    noTextClue: 'The text contains no common sensational or urgent wording patterns.',
+    limitation: 'This automated analysis looks for text patterns; it does not verify facts against external sources. Links are not opened.',
   },
   es: {
     home: 'Inicio',
@@ -144,108 +166,90 @@ const translations = {
     analyzing: 'Analizando...',
     searchNewsLabel: 'Buscar noticia',
     recentSearchesSettings: 'Últimas búsquedas',
+    alertIndex: 'Señales de alerta',
+    noAlertLabel: 'Sin señales detectadas',
+    alertLabel: 'Con señales de alerta',
+    unverifiedLabel: 'Sin verificar',
+    unknownSource: 'No identificada',
+    unknownMetadata: 'No informado',
+    linkNotRead: 'El enlace no se abrió ni se comparó con fuentes de verificación. Pega el texto completo de la noticia para analizar señales de alerta.',
+    alertsFound: 'El análisis encontró señales de alerta en el lenguaje. Esto recomienda cautela, pero no confirma que la noticia sea falsa.',
+    noAlertsFound: 'No se encontraron señales comunes de alerta en el lenguaje. Esto no demuestra que la noticia sea verdadera.',
+    noTextClue: 'El texto no contiene patrones comunes de lenguaje sensacionalista o urgente.',
+    limitation: 'Este análisis automático busca patrones en el texto; no verifica los hechos con fuentes externas. Los enlaces no se abren.',
   },
 }
 
 const defaultStats = {
   xp: 425,
   researches: 8,
-  hits: 6,
 }
 
-function buildDateLabel(date, lang) {
-  const localeMap = {
-    pt: 'pt-BR',
-    en: 'en-US',
-    es: 'es-ES',
-  }
-
-  return new Intl.DateTimeFormat(localeMap[lang] || 'pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date)
+const alertPatterns = {
+  pt: [
+    { pattern: /\b(compartilhe|espalhe).{0,35}\b(apaguem|apagar|censura)\b/, clue: 'Pedido de compartilhamento urgente ou antes de uma suposta censura.' },
+    { pattern: /\b(nao querem que voce saiba|estao escondendo a verdade|midia esconde)\b/, clue: 'Alegação de conspiração sem evidência apresentada.' },
+    { pattern: /\b(cura garantida|cura milagrosa|100\s*%\s*eficaz|resultado garantido)\b/, clue: 'Promessa absoluta ou de cura garantida.' },
+    { pattern: /\b(urgente|chocante|inacreditavel|bomba|exclusivo)\b/, clue: 'Linguagem sensacionalista ou de urgência.' },
+  ],
+  en: [
+    { pattern: /\b(share|forward).{0,35}\b(before they delete|before it is deleted|censored)\b/, clue: 'Urgent request to share or claim of suppression.' },
+    { pattern: /\b(they dont want you to know|hiding the truth|media is hiding)\b/, clue: 'Conspiracy claim without evidence presented.' },
+    { pattern: /\b(guaranteed cure|miracle cure|100\s*%\s*effective|guaranteed results)\b/, clue: 'Absolute promise or guaranteed cure.' },
+    { pattern: /\b(urgent|shocking|unbelievable|breaking|exclusive)\b/, clue: 'Sensational or urgent wording.' },
+  ],
+  es: [
+    { pattern: /\b(comparte|difunde).{0,35}\b(antes de que lo borren|censura)\b/, clue: 'Solicitud urgente para compartir o afirmación de censura.' },
+    { pattern: /\b(no quieren que sepas|estan ocultando la verdad|los medios ocultan)\b/, clue: 'Afirmación de conspiración sin pruebas presentadas.' },
+    { pattern: /\b(cura garantizada|cura milagrosa|100\s*%\s*eficaz|resultado garantizado)\b/, clue: 'Promesa absoluta o de cura garantizada.' },
+    { pattern: /\b(urgente|impactante|increible|bomba|exclusivo)\b/, clue: 'Lenguaje sensacionalista o urgente.' },
+  ],
 }
 
-function createAnalysis(input, lang, previousPercentages, researchNumber) {
+function createAnalysis(input, lang) {
   const text = String(input || '').trim()
-  const seed = text.split('').reduce((total, char) => total + char.charCodeAt(0), 0)
+  const normalizedText = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const locale = translations[lang] ? lang : 'pt'
+  const patterns = alertPatterns[locale]
+  const clues = patterns
+    .filter(({ pattern }) => pattern.test(normalizedText))
+    .map(({ clue }) => clue)
+  const urlMatch = text.match(/https?:\/\/[^\s]+|www\.[^\s]+/i)
+  let source = translations[locale].unknownSource
 
-  let percentage = 68 + ((seed + researchNumber * 7) % 18)
-  for (let attempt = 0; previousPercentages.includes(percentage) && attempt < 18; attempt += 1) {
-    percentage = percentage >= 85 ? 68 : percentage + 1
+  if (urlMatch) {
+    try {
+      source = new URL(urlMatch[0].startsWith('www.') ? `https://${urlMatch[0]}` : urlMatch[0]).hostname.replace(/^www\./, '')
+    } catch {
+      source = translations[locale].unknownSource
+    }
   }
 
-  const truePercentage = percentage
-  const falsePercentage = Math.min(9 + ((seed * 7 + researchNumber) % 12), 100 - truePercentage)
-  const unidentifiedPercentage = 100 - truePercentage - falsePercentage
+  const linkOnly = Boolean(urlMatch && text.replace(urlMatch[0], '').trim().length === 0)
+  const falsePercentage = linkOnly ? 0 : clues.length ? Math.min(35 + clues.length * 20, 85) : 0
+  const unidentifiedPercentage = 100 - falsePercentage
+  const result = falsePercentage ? translations[locale].falseLabel : translations[locale].unidentifiedLabel
 
-  let result = translations[lang].trueLabel
-  let reliability = 'Alta'
-  let resultText = translations[lang].success
-
-  if (truePercentage < 70) {
-    result = translations[lang].possiblyTrueLabel
-    reliability = lang === 'en' ? 'Medium' : lang === 'es' ? 'Media' : 'Média'
-    resultText = translations[lang].warning
-  }
-
-  if (truePercentage < 45) {
-    result = translations[lang].falseLabel
-    reliability = lang === 'en' ? 'Low' : lang === 'es' ? 'Baja' : 'Baixa'
-    resultText = translations[lang].neutral
-  }
-
-  const localizedContent = {
-    pt: {
-      source: 'Portal de Notícias',
-      author: 'Redação',
-      clues: ['Fonte identificada', 'Data identificada', 'Informações comparáveis'],
-      reasons: [
-        'Fonte identificada e verificável.',
-        'Data da publicação está clara e consistente.',
-        'Informações podem ser comparadas com fontes de checagem.',
-        'Há sinais de desinformação que exigem atenção antes do compartilhamento.',
-      ],
-    },
-    en: {
-      source: 'News portal',
-      author: 'Editorial team',
-      clues: ['Source identified', 'Date identified', 'Comparable information'],
-      reasons: [
-        'The source was identified and can be checked.',
-        'The publication date is clear and consistent.',
-        'The information can be compared with fact-checking sources.',
-        'There are signs of misinformation that require attention before sharing.',
-      ],
-    },
-    es: {
-      source: 'Portal de noticias',
-      author: 'Redacción',
-      clues: ['Fuente identificada', 'Fecha identificada', 'Información comparable'],
-      reasons: [
-        'La fuente fue identificada y se puede verificar.',
-        'La fecha de publicación es clara y consistente.',
-        'La información se puede comparar con fuentes de verificación.',
-        'Hay señales de desinformación que requieren atención antes de compartir.',
-      ],
-    },
-  }[lang]
+  if (!clues.length && !linkOnly) clues.push(translations[locale].noTextClue)
 
   return {
-    percentage,
-    truePercentage,
+    percentage: falsePercentage,
+    truePercentage: 0,
     falsePercentage,
     unidentifiedPercentage,
     result,
-    source: localizedContent.source,
-    date: buildDateLabel(new Date(), lang),
-    author: localizedContent.author,
-    reliability,
-    clues: localizedContent.clues,
-    reasons: localizedContent.reasons,
-    resultText,
-    educationalNote: translations[lang].evidence,
+    source,
+    date: translations[locale].unknownMetadata,
+    author: translations[locale].unknownMetadata,
+    reliability: lang === 'en' ? 'Low' : lang === 'es' ? 'Baja' : 'Baixa',
+    clues,
+    reasons: [...clues, translations[locale].limitation],
+    resultText: linkOnly
+      ? translations[locale].linkNotRead
+      : falsePercentage
+        ? translations[locale].alertsFound
+        : translations[locale].noAlertsFound,
+    educationalNote: translations[locale].evidence,
   }
 }
 
@@ -293,13 +297,7 @@ function App() {
     setLoading(true)
 
     window.setTimeout(() => {
-      const previousPercentages = history.map((item) => item.percentage)
-      const nextAnalysis = createAnalysis(
-        sanitizedQuery,
-        languageRef.current,
-        previousPercentages,
-        (stats.researches ?? 0) + 1,
-      )
+      const nextAnalysis = createAnalysis(sanitizedQuery, languageRef.current)
       const nextHistory = [
         {
           id: `${Date.now()}`,
@@ -319,11 +317,9 @@ function App() {
       setHistory(nextHistory)
       setStats((previousStats) => {
         const nextResearches = (previousStats.researches ?? 0) + 1
-        const nextHits = (previousStats.hits ?? 0) + (nextAnalysis.percentage >= 70 ? 1 : 0)
         return {
           xp: (previousStats.xp ?? 0) + 85,
           researches: nextResearches,
-          hits: nextHits,
         }
       })
       setLoading(false)
@@ -340,7 +336,6 @@ function App() {
   }
 
   const totalXp = stats.xp ?? defaultStats.xp
-  const hitRate = stats.researches ? Math.round((stats.hits / stats.researches) * 100) : 0
 
   if (screen === 'settings') {
     return (
@@ -415,8 +410,6 @@ function App() {
                   xp={85}
                   totalXp={totalXp}
                   researches={stats.researches}
-                  hits={stats.hits}
-                  hitRate={hitRate}
                   labels={text}
                 />
 
