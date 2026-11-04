@@ -167,30 +167,30 @@ function buildDateLabel(date, lang) {
   }).format(date)
 }
 
-function createAnalysis(input, lang) {
+function createAnalysis(input, lang, previousPercentages, researchNumber) {
   const text = String(input || '').trim()
   const seed = text.split('').reduce((total, char) => total + char.charCodeAt(0), 0)
 
-  const truePercentage = 68 + (seed % 18)
-  const falsePercentage = 9 + ((seed * 7) % 12)
-  const unidentifiedPercentage = Math.max(100 - truePercentage - falsePercentage, 0)
-  const totalPercentage = truePercentage + falsePercentage + unidentifiedPercentage
-  const normalizedTruePercentage = Math.round((truePercentage / totalPercentage) * 100)
-  const normalizedFalsePercentage = Math.round((falsePercentage / totalPercentage) * 100)
-  const normalizedUnidentifiedPercentage = 100 - normalizedTruePercentage - normalizedFalsePercentage
-  const percentage = Math.min(normalizedTruePercentage, 99)
+  let percentage = 68 + ((seed + researchNumber * 7) % 18)
+  for (let attempt = 0; previousPercentages.includes(percentage) && attempt < 18; attempt += 1) {
+    percentage = percentage >= 85 ? 68 : percentage + 1
+  }
+
+  const truePercentage = percentage
+  const falsePercentage = Math.min(9 + ((seed * 7 + researchNumber) % 12), 100 - truePercentage)
+  const unidentifiedPercentage = 100 - truePercentage - falsePercentage
 
   let result = translations[lang].trueLabel
   let reliability = 'Alta'
   let resultText = translations[lang].success
 
-  if (percentage < 70) {
+  if (truePercentage < 70) {
     result = translations[lang].possiblyTrueLabel
     reliability = lang === 'en' ? 'Medium' : lang === 'es' ? 'Media' : 'Média'
     resultText = translations[lang].warning
   }
 
-  if (percentage < 45) {
+  if (truePercentage < 45) {
     result = translations[lang].falseLabel
     reliability = lang === 'en' ? 'Low' : lang === 'es' ? 'Baja' : 'Baixa'
     resultText = translations[lang].neutral
@@ -234,9 +234,9 @@ function createAnalysis(input, lang) {
 
   return {
     percentage,
-    truePercentage: normalizedTruePercentage,
-    falsePercentage: normalizedFalsePercentage,
-    unidentifiedPercentage: normalizedUnidentifiedPercentage,
+    truePercentage,
+    falsePercentage,
+    unidentifiedPercentage,
     result,
     source: localizedContent.source,
     date: buildDateLabel(new Date(), lang),
@@ -293,7 +293,13 @@ function App() {
     setLoading(true)
 
     window.setTimeout(() => {
-      const nextAnalysis = createAnalysis(sanitizedQuery, languageRef.current)
+      const previousPercentages = history.map((item) => item.percentage)
+      const nextAnalysis = createAnalysis(
+        sanitizedQuery,
+        languageRef.current,
+        previousPercentages,
+        (stats.researches ?? 0) + 1,
+      )
       const nextHistory = [
         {
           id: `${Date.now()}`,

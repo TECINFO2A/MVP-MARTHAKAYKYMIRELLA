@@ -50,6 +50,7 @@
 .topbar {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 52px;
+  grid-template-areas: "brand search settings";
   align-items: center;
   gap: 16px;
   padding: 18px 20px;
@@ -61,6 +62,7 @@
 }
 
 .logo-block {
+  grid-area: brand;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -81,6 +83,7 @@
 }
 
 .search-panel {
+  grid-area: search;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -144,6 +147,10 @@
   border-radius: 16px;
   min-height: 46px;
   min-width: 46px;
+}
+
+.settings-button {
+  grid-area: settings;
 }
 
 .dashboard {
@@ -215,6 +222,7 @@
 .analysis-chart,
 .analysis-main,
 .explainers {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -631,7 +639,10 @@
 
 @media (max-width: 900px) {
   .topbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand settings"
+      "search search";
   }
 
   .search-panel {
@@ -647,27 +658,67 @@
 
 @media (max-width: 640px) {
   .page-shell {
-    padding-inline: 14px;
+    padding: 16px 12px 36px;
   }
 
   .topbar {
-    padding: 14px 14px 16px;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 20px;
   }
 
   .search-panel {
-    padding: 8px 8px 8px 12px;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .search-input {
+    font-size: 0.9rem;
   }
 
   .search-button {
-    padding-inline: 12px;
+    flex-shrink: 0;
+    padding: 10px;
+    font-size: 0.9rem;
   }
 
-  .meta-list,
-  .stats-grid {
+  .analysis-chart {
+    min-height: 0;
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .analysis-summary,
+  .explain-card,
+  .history-card,
+  .gamification-card {
+    padding: 18px 16px;
+  }
+
+  .meta-list {
     grid-template-columns: 1fr;
   }
 
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .mini-stat {
+    padding: 12px;
+  }
+
+  .history-item {
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .history-info {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
   .empty-state {
-    padding: 32px 18px;
+    padding: 30px 16px;
   }
 }
