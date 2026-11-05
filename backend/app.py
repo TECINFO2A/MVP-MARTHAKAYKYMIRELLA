@@ -3,6 +3,7 @@ import re
 from typing import List, Optional
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
@@ -10,19 +11,42 @@ load_dotenv()
 
 app = FastAPI(title='News Trust API', version='1.0.0')
 
-MODEL_NAME = os.getenv('MODEL_NAME', 'xlm-roberta-base')
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        'ALLOWED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173',
+    ).split(',')
+    if origin.strip()
+]
 
-try:
-    from transformers import pipeline
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_methods=['GET', 'POST'],
+    allow_headers=['Content-Type'],
+)
 
-    model_pipeline = pipeline(
-        'text-classification',
-        model=MODEL_NAME,
-        tokenizer=MODEL_NAME,
-        device=-1,
-    )
-except Exception:
-    model_pipeline = None
+MODEL_NAME = os.getenv('MODEL_NAME', '').strip()
+model_pipeline = None
+
+if MODEL_NAME:
+    try:
+        from transformers import pipeline
+
+        model_pipeline = pipeline(
+            'text-classification',
+            model=MODEL_NAME,
+            tokenizer=MODEL_NAME,
+            device=-1,
+        )
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).exception(
+            'Could not load the configured Transformers model: %s',
+            MODEL_NAME,
+        )
 
 
 class NewsInput(BaseModel):
@@ -161,7 +185,10 @@ def get_model_signal(title: str, text: str) -> Optional[float]:
 
 @app.get('/health')
 def healthcheck() -> dict:
-    return {'status': 'ok', 'model': MODEL_NAME if model_pipeline else 'heuristic-only'}
+    return {
+        'status': 'ok',
+        'model': MODEL_NAME if model_pipeline else 'heuristic-rules',
+    }
 
 
 @app.post('/analyze', response_model=NewsAnalysisResult)

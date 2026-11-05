@@ -6,9 +6,10 @@ Projeto frontend em React + Vite para análise de notícias e checagem de confia
 
 1. Instale as dependências:
    npm install
-2. Inicie o servidor de desenvolvimento:
+2. Copie `.env.example` para `.env` (a configuração padrão usa o proxy local `/api`).
+3. Inicie o servidor de desenvolvimento:
    npm run dev
-3. Para gerar a build de produção:
+4. Para gerar a build de produção:
    npm run build
 
 ## Como rodar o backend Python
@@ -37,20 +38,22 @@ POST http://localhost:8000/analyze
 ### Resposta esperada
 
 {
-  "score": 87.5,
+  "score": 98.0,
   "level": "confiável",
   "reasons": [
-    "Pistas de credibilidade: relatórios, fontes, dados.",
+    "Pistas de credibilidade: oficial, relatório, fontes.",
     "O domínio parece ser de uma fonte confiável."
   ],
-  "source": "www.gov.br",
-  "domain": "www.gov.br",
-  "model": "xlm-roberta-base"
+  "source": "gov.br",
+  "domain": "gov.br",
+  "model": "heuristic-rules"
 }
 
 ## Observações
 
 - O projeto compila corretamente com Vite.
-- O backend usa Hugging Face Transformers e aceita um modelo configurável por variáveis de ambiente.
-- O padrão é `xlm-roberta-base`, mas um modelo fine-tuned em fake news pode ser substituído via `MODEL_NAME`.
+- O frontend envia título, texto e URL para `POST /analyze` e mostra score, classificação, fonte e motivos.
+- A URL é analisada como metadado; o backend não abre a página nem extrai o texto automaticamente.
+- Sem `MODEL_NAME`, a API informa que está usando regras heurísticas. `xlm-roberta-base` sozinho não é um classificador de notícias falsas; configure `MODEL_NAME` apenas com um modelo fine-tuned para classificação com rótulos compatíveis.
+- Para produção, configure `VITE_API_URL` com a URL base do backend e `ALLOWED_ORIGINS` no backend com a origem do site.
 - Recomendado verificar as dependências com `npm audit` para tratar vulnerabilidades reportadas.

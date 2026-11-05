@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Header from './components/Header'
 import NewsAnalysis from './components/NewsAnalysis'
 import Settings from './components/Settings'
 import GamificationCard from './components/GamificationCard'
 import { STORAGE_KEYS, readStorage, writeStorage } from './utils/storage'
+import { analyzeNews } from './utils/newsApi'
 import './App.css'
 
 const languageOptions = [
@@ -17,9 +18,23 @@ const translations = {
     home: 'Página Inicial',
     settings: 'Ajustes',
     searchPlaceholder: 'Pesquise uma notícia ou cole um link...',
+    titleLabel: 'Título da notícia',
+    articleTextLabel: 'Texto da notícia',
+    urlLabel: 'URL da notícia (opcional)',
+    inputHelp: 'A API analisa o conteúdo informado; ela não abre nem extrai o texto do link.',
     analyze: 'Analisar',
     loading: 'Analisando informação...',
+    apiError: 'Não foi possível analisar a notícia.',
     resultTitle: 'Resultado da análise',
+    scoreLabel: 'Score de confiabilidade',
+    trustedLevel: 'Confiável',
+    cautionLevel: 'Atenção',
+    falseLevel: 'Possivelmente falsa',
+    analysisDisclaimer: 'Análise automatizada experimental. Não confirma fatos nem substitui checagem jornalística.',
+    domainLabel: 'Domínio informado',
+    domainUnknown: 'Não identificado',
+    sourceUnknown: 'Não informada',
+    modelLabel: 'Sistema de análise',
     whyTitle: 'Por que chegamos a esse resultado?',
     historyTitle: 'Histórico',
     darkMode: 'Modo noturno',
@@ -37,6 +52,9 @@ const translations = {
     success: 'Esta notícia apresenta características semelhantes a informações verificadas por fontes confiáveis.',
     warning: 'Há sinais que exigem cuidado antes de compartilhar a informação.',
     neutral: 'A notícia precisa de mais contexto para ser avaliada com confiança.',
+    trustedSummary: 'A API classificou o conteúdo como confiável segundo os sinais analisados.',
+    cautionSummary: 'A API encontrou sinais mistos ou insuficientes. Verifique a notícia em outras fontes.',
+    falseSummary: 'A API encontrou sinais preocupantes. Confirme a informação antes de compartilhar.',
     evidence: 'Antes de compartilhar uma informação, pare, verifique e questione.',
     educationalTag: 'Uma porcentagem não substitui a verificação humana.',
     xpMessage: 'Você está desenvolvendo seu pensamento crítico!',
@@ -61,9 +79,23 @@ const translations = {
     home: 'Home',
     settings: 'Settings',
     searchPlaceholder: 'Search a news article or paste a link...',
+    titleLabel: 'News title',
+    articleTextLabel: 'News text',
+    urlLabel: 'News URL (optional)',
+    inputHelp: 'The API analyzes the provided text; it does not open or extract content from the link.',
     analyze: 'Analyze',
     loading: 'Analyzing information...',
+    apiError: 'Could not analyze the news item.',
     resultTitle: 'Analysis result',
+    scoreLabel: 'Reliability score',
+    trustedLevel: 'Reliable',
+    cautionLevel: 'Caution',
+    falseLevel: 'Possibly false',
+    analysisDisclaimer: 'Experimental automated analysis. It does not confirm facts or replace journalistic fact-checking.',
+    domainLabel: 'Provided domain',
+    domainUnknown: 'Not identified',
+    sourceUnknown: 'Not provided',
+    modelLabel: 'Analysis system',
     whyTitle: 'Why did we reach this result?',
     historyTitle: 'History',
     darkMode: 'Dark mode',
@@ -81,6 +113,9 @@ const translations = {
     success: 'This news item shows characteristics similar to information verified by reliable sources.',
     warning: 'There are signs that require caution before sharing this information.',
     neutral: 'The story needs more context before it can be assessed with confidence.',
+    trustedSummary: 'The API classified the content as reliable based on the signals analyzed.',
+    cautionSummary: 'The API found mixed or insufficient signals. Check the story against other sources.',
+    falseSummary: 'The API found concerning signals. Verify the information before sharing.',
     evidence: 'Before sharing information, pause, verify and question it.',
     educationalTag: 'A percentage does not replace human verification.',
     xpMessage: 'You are developing your critical thinking!',
@@ -105,9 +140,23 @@ const translations = {
     home: 'Inicio',
     settings: 'Configuración',
     searchPlaceholder: 'Busca una noticia o pega un enlace...',
+    titleLabel: 'Título de la noticia',
+    articleTextLabel: 'Texto de la noticia',
+    urlLabel: 'URL de la noticia (opcional)',
+    inputHelp: 'La API analiza el texto proporcionado; no abre ni extrae contenido del enlace.',
     analyze: 'Analizar',
     loading: 'Analizando información...',
+    apiError: 'No se pudo analizar la noticia.',
     resultTitle: 'Resultado del análisis',
+    scoreLabel: 'Puntuación de confiabilidad',
+    trustedLevel: 'Confiable',
+    cautionLevel: 'Precaución',
+    falseLevel: 'Posiblemente falsa',
+    analysisDisclaimer: 'Análisis automatizado experimental. No confirma hechos ni sustituye la verificación periodística.',
+    domainLabel: 'Dominio indicado',
+    domainUnknown: 'No identificado',
+    sourceUnknown: 'No indicada',
+    modelLabel: 'Sistema de análisis',
     whyTitle: '¿Por qué llegamos a este resultado?',
     historyTitle: 'Historial',
     darkMode: 'Modo nocturno',
@@ -125,6 +174,9 @@ const translations = {
     success: 'Esta noticia presenta características similares a información verificada por fuentes confiables.',
     warning: 'Hay señales que requieren precaución antes de compartir la información.',
     neutral: 'La noticia necesita más contexto para evaluarse con confianza.',
+    trustedSummary: 'La API clasificó el contenido como confiable según las señales analizadas.',
+    cautionSummary: 'La API encontró señales mixtas o insuficientes. Verifica la noticia en otras fuentes.',
+    falseSummary: 'La API encontró señales preocupantes. Confirma la información antes de compartirla.',
     evidence: 'Antes de compartir una información, haz una pausa, verifícala y cuestiona.',
     educationalTag: 'Un porcentaje no reemplaza la verificación humana.',
     xpMessage: '¡Estás desarrollando tu pensamiento crítico!',
@@ -153,247 +205,6 @@ const defaultStats = {
   hits: 6,
 }
 
-function buildDateLabel(date, lang) {
-  const localeMap = {
-    pt: 'pt-BR',
-    en: 'en-US',
-    es: 'es-ES',
-  }
-
-  return new Intl.DateTimeFormat(localeMap[lang] || 'pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date)
-}
-
-function extractDomain(value) {
-  const text = String(value || '').trim()
-  const match = text.match(/(?:https?:\/\/)?(?:www\.)?([a-z0-9.-]+\.[a-z]{2,})(?:\/|$)/i)
-
-  if (!match) {
-    return ''
-  }
-
-  return match[1].toLowerCase().replace(/^www\./, '')
-}
-
-function createAnalysis(input, lang) {
-  const rawText = String(input || '')
-  const text = rawText.trim().toLowerCase()
-  const seed = text.split('').reduce((total, char) => total + char.charCodeAt(0), 0)
-  const domain = extractDomain(rawText)
-
-  const suspiciousWords = [
-    'viral',
-    'alerta',
-    'revelado',
-    'surpreendente',
-    'exclusivo',
-    'urgente',
-    'compartilhe',
-    'rumor',
-    'fake',
-    'misterioso',
-    'sem confirmação',
-    'sem prova',
-    'não foi verificado',
-    'milagroso',
-    'todo mundo está falando',
-    'sem fontes',
-    'seu amigo mandou',
-    'apenas no whatsapp',
-    'me diga se vocês viram',
-    'isso é verdade',
-  ]
-
-  const trustedWords = [
-    'oficial',
-    'relatório',
-    'fontes',
-    'confirmado',
-    'dados',
-    'estudo',
-    'documento',
-    'declaração',
-    'agência',
-    'instituto',
-    'reportagem',
-    'verificado',
-    'evidência',
-    'publicado',
-    'notícia',
-    'pesquisa',
-    'análise',
-    'conferiu',
-    'comprovação',
-    'demonstra',
-    'apresentou',
-    'dados oficiais',
-  ]
-
-  const trustedDomains = [
-    'gov',
-    'governo',
-    'bbc',
-    'reuters',
-    'apnews',
-    'nytimes',
-    'globo',
-    'g1',
-    'folha',
-    'estadao',
-    'cnn',
-    'nasa',
-    'who',
-    'uol',
-    'terra',
-    'exame',
-    'correio',
-    'jornaldocomercio',
-  ]
-
-  const suspiciousDomains = [
-    'whatsapp',
-    'facebook',
-    'instagram',
-    'twitter',
-    'x.com',
-    'tiktok',
-    'telegram',
-    'youtube',
-    'blogspot',
-    'wordpress',
-    'medium',
-    'livejournal',
-  ]
-
-  const hasUrl = /(https?:\/\/|www\.)/i.test(rawText)
-  const hasExcessiveCaps = /[A-Z]{5,}/.test(rawText)
-  const hasSourceReference = /(fonte|fontes|agência|instituto|ministério|governo|empresa|portal|reportagem|oficial)/i.test(rawText)
-  const hasExplicitFakeSignal = /(fake|falsa|mentira|rumor|desinformação|hoax)/i.test(text)
-  const isLikelySocialShare = /(whatsapp|telegram|facebook|instagram|twitter|x\.com|tiktok|grupo de whatsapp|compartilhado|mandei para vocês)/i.test(text)
-
-  const domainCredibility = (() => {
-    if (!domain) {
-      return 0
-    }
-
-    const host = domain.split('.').slice(0, -1).join('.') || domain
-    const isTrustedDomain = trustedDomains.some((item) => domain.includes(item) || host.includes(item))
-    const isSuspiciousDomain = suspiciousDomains.some((item) => domain.includes(item) || host.includes(item))
-
-    if (isTrustedDomain) return 3
-    if (isSuspiciousDomain) return -4
-    if (domain.endsWith('.com') || domain.endsWith('.net') || domain.endsWith('.org')) return -1
-
-    return 0
-  })()
-
-  const suspiciousScore = suspiciousWords.reduce(
-    (total, word) => total + (text.includes(word) ? 1 : 0),
-    0,
-  ) + (hasUrl ? 2 : 0) + (hasExcessiveCaps ? 2 : 0) + (isLikelySocialShare ? 3 : 0) + (domainCredibility < 0 ? 2 : 0)
-
-  const trustedScore = trustedWords.reduce(
-    (total, word) => total + (text.includes(word) ? 1 : 0),
-    0,
-  ) + (hasSourceReference ? 3 : 0) + (domainCredibility > 0 ? 4 : 0)
-
-  const balance = trustedScore * 12 - suspiciousScore * 14 + domainCredibility * 6
-  const variance = (seed % 19) - 9
-  let percentage = 50 + balance + variance
-
-  if (hasExplicitFakeSignal && suspiciousScore >= 2) {
-    percentage -= 25
-  }
-
-  if (trustedScore >= 4 && suspiciousScore <= 1) {
-    percentage += 22
-  }
-
-  if (suspiciousScore >= 4 && trustedScore === 0) {
-    percentage -= 30
-  }
-
-  percentage = Math.max(8, Math.min(94, percentage))
-
-  const truePercentage = Math.max(8, Math.min(92, Math.round(percentage)))
-  const falsePercentage = Math.max(8, Math.min(72, Math.round((100 - truePercentage) * 0.7)))
-  const unidentifiedPercentage = Math.max(0, 100 - truePercentage - falsePercentage)
-
-  let result = translations[lang].trueLabel
-  let reliability = 'Alta'
-  let resultText = translations[lang].success
-
-  if (percentage < 70) {
-    result = translations[lang].possiblyTrueLabel
-    reliability = lang === 'en' ? 'Medium' : lang === 'es' ? 'Media' : 'Média'
-    resultText = translations[lang].warning
-  }
-
-  if (percentage < 45) {
-    result = translations[lang].falseLabel
-    reliability = lang === 'en' ? 'Low' : lang === 'es' ? 'Baja' : 'Baixa'
-    resultText = translations[lang].neutral
-  }
-
-  const localizedContent = {
-    pt: {
-      source: 'Portal de Notícias',
-      author: 'Redação',
-      clues: ['Fonte identificada', 'Data identificada', 'Informações comparáveis'],
-      reasons: [
-        'Fonte identificada e verificável.',
-        'Data da publicação está clara e consistente.',
-        'Informações podem ser comparadas com fontes de checagem.',
-        'Há sinais de desinformação que exigem atenção antes do compartilhamento.',
-      ],
-    },
-    en: {
-      source: 'News portal',
-      author: 'Editorial team',
-      clues: ['Source identified', 'Date identified', 'Comparable information'],
-      reasons: [
-        'The source was identified and can be checked.',
-        'The publication date is clear and consistent.',
-        'The information can be compared with fact-checking sources.',
-        'There are signs of misinformation that require attention before sharing.',
-      ],
-    },
-    es: {
-      source: 'Portal de noticias',
-      author: 'Redacción',
-      clues: ['Fuente identificada', 'Fecha identificada', 'Información comparable'],
-      reasons: [
-        'La fuente fue identificada y se puede verificar.',
-        'La fecha de publicación es clara y consistente.',
-        'La información se puede comparar con fuentes de verificación.',
-        'Hay señales de desinformación que requieren atención antes de compartir.',
-      ],
-    },
-  }[lang]
-
-  const sourceLabel = domain ? domain : localizedContent.source
-
-  return {
-    percentage,
-    truePercentage,
-    falsePercentage,
-    unidentifiedPercentage,
-    result,
-    source: sourceLabel,
-    date: buildDateLabel(new Date(), lang),
-    author: localizedContent.author,
-    reliability,
-    clues: localizedContent.clues,
-    reasons: localizedContent.reasons,
-    resultText,
-    educationalNote: translations[lang].evidence,
-    origin: domain || 'input-text',
-  }
-}
-
 function App() {
   const [theme, setTheme] = useState(() => readStorage(STORAGE_KEYS.theme, 'light'))
   const [language, setLanguage] = useState(() => {
@@ -401,12 +212,14 @@ function App() {
     return translations[storedLanguage] ? storedLanguage : 'pt'
   })
   const [screen, setScreen] = useState('home')
-  const [query, setQuery] = useState('')
+  const [title, setTitle] = useState('')
+  const [articleText, setArticleText] = useState('')
+  const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState('')
   const [analysis, setAnalysis] = useState(null)
   const [history, setHistory] = useState(() => readStorage(STORAGE_KEYS.history, []))
   const [stats, setStats] = useState(() => readStorage(STORAGE_KEYS.stats, defaultStats))
-  const languageRef = useRef(language)
 
   const text = useMemo(() => translations[language] || translations.pt, [language])
 
@@ -415,7 +228,6 @@ function App() {
   }, [theme])
 
   useEffect(() => {
-    languageRef.current = language
     writeStorage(STORAGE_KEYS.language, language)
   }, [language])
 
@@ -431,43 +243,56 @@ function App() {
     document.body.style.background = theme === 'dark' ? '#2B0D18' : '#FFF9FB'
   }, [theme])
 
-  const handleAnalyze = () => {
-    const sanitizedQuery = query.trim()
-    if (!sanitizedQuery) return
+  const handleAnalyze = async (event) => {
+    event.preventDefault()
+    if (loading) return
 
+    setAnalysisError('')
+    setAnalysis(null)
     setLoading(true)
 
-    window.setTimeout(() => {
-      const nextAnalysis = createAnalysis(sanitizedQuery, languageRef.current)
-      const nextHistory = [
-        {
-          id: `${Date.now()}`,
-          date: nextAnalysis.date,
-          percentage: nextAnalysis.percentage,
-          result: nextAnalysis.result,
-          truePercentage: nextAnalysis.truePercentage,
-          falsePercentage: nextAnalysis.falsePercentage,
-          unidentifiedPercentage: nextAnalysis.unidentifiedPercentage,
-          source: nextAnalysis.source,
-          author: nextAnalysis.author,
-        },
-        ...history,
-      ].slice(0, 3)
+    try {
+      const response = await analyzeNews({
+        title: title.trim(),
+        text: articleText.trim(),
+        url: url.trim(),
+      })
+      const nextAnalysis = {
+        ...response,
+        score: Number(response.score),
+        resultText: {
+          confiável: text.trustedSummary,
+          atenção: text.cautionSummary,
+          falsa: text.falseSummary,
+        }[response.level] || text.cautionSummary,
+      }
 
       setAnalysis(nextAnalysis)
-      setHistory(nextHistory)
+      setHistory((previousHistory) => [
+        {
+          id: `${Date.now()}`,
+          date: new Intl.DateTimeFormat(language === 'en' ? 'en-US' : language === 'es' ? 'es-ES' : 'pt-BR').format(new Date()),
+          percentage: nextAnalysis.score,
+          result: nextAnalysis.level,
+          source: nextAnalysis.source,
+        },
+        ...previousHistory,
+      ].slice(0, 3))
       setStats((previousStats) => {
         const nextResearches = (previousStats.researches ?? 0) + 1
-        const nextHits = (previousStats.hits ?? 0) + (nextAnalysis.percentage >= 70 ? 1 : 0)
+        const nextHits = (previousStats.hits ?? 0) + (nextAnalysis.score >= 75 ? 1 : 0)
         return {
           xp: (previousStats.xp ?? 0) + 85,
           researches: nextResearches,
           hits: nextHits,
         }
       })
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : text.apiError)
+    } finally {
       setLoading(false)
       setScreen('home')
-    }, 1000)
+    }
   }
 
   const handleThemeToggle = () => {
@@ -508,17 +333,30 @@ function App() {
       <main className="page-shell">
         <Header
           onSettingsClick={() => setScreen('settings')}
-          searchValue={query}
-          onSearchChange={setQuery}
+          title={title}
+          onTitleChange={setTitle}
+          articleText={articleText}
+          onArticleTextChange={setArticleText}
+          url={url}
+          onUrlChange={setUrl}
           onAnalyze={handleAnalyze}
           loading={loading}
-          placeholder={text.searchPlaceholder}
+          titleLabel={text.titleLabel}
+          textLabel={text.articleTextLabel}
+          urlLabel={text.urlLabel}
+          inputHelp={text.inputHelp}
           analyzeLabel={text.analyze}
           loadingLabel={text.analyzing}
           settingsLabel={text.settingsLabel}
         />
 
         <section className="dashboard">
+          {analysisError && (
+            <div className="analysis-error card" role="alert">
+              {analysisError}
+            </div>
+          )}
+
           {loading && (
             <div className="loading-banner card">
               <span className="loading-spinner" aria-hidden="true" />
@@ -543,9 +381,7 @@ function App() {
               <NewsAnalysis
                 analysis={analysis}
                 resultText={analysis.resultText}
-                summary={analysis.resultText}
                 reasons={analysis.reasons}
-                education={analysis.educationalNote}
                 labels={text}
               />
 
