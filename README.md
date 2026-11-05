@@ -2,28 +2,44 @@
 
 Projeto frontend em React + Vite para análise de notícias e checagem de confiabilidade.
 
-## Como rodar o frontend
+## Como rodar o projeto no Windows
 
-1. Instale as dependências:
-   npm install
-2. Copie `.env.example` para `.env` (a configuração padrão usa o proxy local `/api`).
-3. Inicie o servidor de desenvolvimento:
-   npm run dev
-4. Para gerar a build de produção:
-   npm run build
+O frontend e o backend rodam em terminais separados. Mantenha os dois terminais abertos enquanto usar o projeto.
+
+### Terminal 1: backend
+
+No PowerShell, a partir da pasta do projeto:
+
+```powershell
+cd backend
+py -m uvicorn app:app --reload --host 127.0.0.1 --port 8000
+```
+
+Deixe esse comando rodando. A API não abre uma janela do navegador; para conferir se está ativa, acesse http://127.0.0.1:8000/docs.
+
+### Terminal 2: frontend
+
+Abra outro PowerShell na pasta do projeto (a pasta que contém `package.json`) e execute:
+
+```powershell
+npm.cmd run dev
+```
+
+Use `npm.cmd` no PowerShell se `npm run dev` for bloqueado pela política de execução de scripts. Acesse o endereço mostrado pelo Vite, normalmente http://localhost:5173.
+
+Para instalar as dependências do frontend caso necessário, execute `npm.cmd install` nessa mesma pasta. Para gerar a build de produção, execute `npm.cmd run build`.
 
 ## Como rodar o backend Python
 
-1. Entre na pasta do backend:
-   cd backend
-2. Crie um ambiente virtual:
-   python -m venv .venv
-3. Ative o ambiente:
-   .venv\Scripts\activate
-4. Instale as dependências:
-   pip install -r requirements.txt
-5. Inicie a API:
-   uvicorn app:app --reload --host 0.0.0.0 --port 8000
+O comando acima pressupõe que as dependências do backend já foram instaladas. Para prepará-las:
+
+```powershell
+cd backend
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Depois, inicie a API com `py -m uvicorn app:app --reload --host 127.0.0.1 --port 8000` a partir da pasta `backend`.
 
 ### Exemplo de requisição
 
