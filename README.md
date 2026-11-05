@@ -6,6 +6,10 @@ Projeto frontend em React + Vite para análise de notícias e checagem de confia
 
 O frontend e o backend rodam em terminais separados. Mantenha os dois terminais abertos enquanto usar o projeto.
 
+## Publicação
+
+O frontend é publicado no [GitHub Pages](https://tecinfo2a.github.io/MVP-MARTHAKAYKYMIRELLA/) pelo workflow em `.github/workflows/deploy.yml`. A API FastAPI é hospedada separadamente no Render. O workflow define `VITE_API_URL` durante a build para que o botão de análise use a API publicada; o backend deve permitir a origem `https://tecinfo2a.github.io` em `ALLOWED_ORIGINS`.
+
 ### Terminal 1: backend
 
 No PowerShell, a partir da pasta do projeto:
