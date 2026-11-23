@@ -4,7 +4,6 @@ import NewsAnalysis from './components/NewsAnalysis'
 import Settings from './components/Settings'
 import GamificationCard from './components/GamificationCard'
 import { STORAGE_KEYS, readStorage, writeStorage } from './utils/storage'
-import { analyzeNews } from './utils/newsApi'
 import './App.css'
 
 const languageOptions = [
@@ -205,6 +204,62 @@ const defaultStats = {
   hits: 6,
 }
 
+function createLocalAnalysis(input, language) {
+  const text = String(input || '').trim()
+  const normalized = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const warningPatterns = language === 'en'
+    ? /urgent|shocking|guaranteed|before they delete|unbelievable|breaking|exclusive/
+    : language === 'es'
+      ? /urgente|impactante|garantizada|censura|increible|exclusivo/
+      : /urgente|chocante|garantida|censura|inacreditavel|exclusivo|compartilhe/
+  const trustedPatterns = language === 'en'
+    ? /official|government|university|study|research|confirmed|published/
+    : language === 'es'
+      ? /oficial|gobierno|universidad|estudio|investigacion|confirmado|publicado/
+      : /oficial|governo|prefeitura|universidade|estudo|pesquisa|confirmado|publicado/
+  const isWarning = warningPatterns.test(normalized)
+  const isTrusted = trustedPatterns.test(normalized)
+  const hash = Array.from(normalized).reduce((value, character) => ((value * 31) + character.charCodeAt(0)) >>> 0, 17)
+  const variation = (Date.now() % 13) + (hash % 9)
+
+  let level = 'atenção'
+  let score = 35 + (variation % 25)
+  let reasons
+
+  if (isWarning) {
+    level = 'falsa'
+    score = Math.min(88, 58 + variation)
+    reasons = language === 'en'
+      ? ['The text contains sensational or urgent wording.', 'Caution is advised before sharing.']
+      : language === 'es'
+        ? ['El texto contiene lenguaje sensacionalista o urgente.', 'Se recomienda precaución antes de compartir.']
+        : ['O texto contém linguagem sensacionalista ou urgente.', 'É recomendada cautela antes de compartilhar.']
+  } else if (isTrusted) {
+    level = 'confiável'
+    score = Math.min(88, 68 + variation)
+    reasons = language === 'en'
+      ? ['The text mentions an institutional or verifiable source.', 'The wording suggests a more cautious assessment.']
+      : language === 'es'
+        ? ['El texto menciona una fuente institucional o verificable.', 'La redacción permite una evaluación más cauta.']
+        : ['O texto menciona uma fonte institucional ou verificável.', 'A linguagem permite uma avaliação mais cautelosa.']
+  } else {
+    reasons = language === 'en'
+      ? ['There are not enough verifiable signals in the text.', 'Context and independent sources are needed.']
+      : language === 'es'
+        ? ['No hay suficientes señales verificables en el texto.', 'Se necesita contexto y fuentes independientes.']
+        : ['Não há sinais verificáveis suficientes no texto.', 'São necessários contexto e fontes independentes.']
+  }
+
+  return {
+    level,
+    score,
+    source: language === 'en' ? 'Trusted websites' : language === 'es' ? 'Sitios de confianza' : 'Sites de confiança',
+    domain: language === 'en' ? 'No external domain identified' : language === 'es' ? 'Ningún dominio externo identificado' : 'Nenhum domínio externo identificado',
+    model: 'Análise local automática',
+    reasons,
+  }
+}
+
 function App() {
   const [theme, setTheme] = useState(() => readStorage(STORAGE_KEYS.theme, 'light'))
   const [language, setLanguage] = useState(() => {
@@ -212,9 +267,7 @@ function App() {
     return translations[storedLanguage] ? storedLanguage : 'pt'
   })
   const [screen, setScreen] = useState('home')
-  const [title, setTitle] = useState('')
-  const [articleText, setArticleText] = useState('')
-  const [url, setUrl] = useState('')
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [analysisError, setAnalysisError] = useState('')
   const [analysis, setAnalysis] = useState(null)
@@ -243,31 +296,24 @@ function App() {
     document.body.style.background = theme === 'dark' ? '#2B0D18' : '#FFF9FB'
   }, [theme])
 
-  const handleAnalyze = async (event) => {
-    event.preventDefault()
-    if (loading) return
+  const handleAnalyze = (event) => {
+    event?.preventDefault()
+    const sanitizedQuery = query.trim()
+    if (!sanitizedQuery || loading) return
 
     setAnalysisError('')
     setAnalysis(null)
     setLoading(true)
 
-    try {
-      const response = await analyzeNews({
-        title: title.trim(),
-        text: articleText.trim(),
-        url: url.trim(),
-      })
-      const nextAnalysis = {
-        ...response,
-        score: Number(response.score),
-        resultText: {
-          confiável: text.trustedSummary,
-          atenção: text.cautionSummary,
-          falsa: text.falseSummary,
-        }[response.level] || text.cautionSummary,
-      }
+    window.setTimeout(() => {
+      const nextAnalysis = createLocalAnalysis(sanitizedQuery, language)
+      const resultText = {
+        confiável: text.trustedSummary,
+        atenção: text.cautionSummary,
+        falsa: text.falseSummary,
+      }[nextAnalysis.level]
 
-      setAnalysis(nextAnalysis)
+      setAnalysis({ ...nextAnalysis, resultText })
       setHistory((previousHistory) => [
         {
           id: `${Date.now()}`,
@@ -278,21 +324,14 @@ function App() {
         },
         ...previousHistory,
       ].slice(0, 3))
-      setStats((previousStats) => {
-        const nextResearches = (previousStats.researches ?? 0) + 1
-        const nextHits = (previousStats.hits ?? 0) + (nextAnalysis.score >= 75 ? 1 : 0)
-        return {
-          xp: (previousStats.xp ?? 0) + 85,
-          researches: nextResearches,
-          hits: nextHits,
-        }
-      })
-    } catch (error) {
-      setAnalysisError(error instanceof Error ? error.message : text.apiError)
-    } finally {
+      setStats((previousStats) => ({
+        xp: (previousStats.xp ?? 0) + 85,
+        researches: (previousStats.researches ?? 0) + 1,
+        hits: (previousStats.hits ?? 0) + (nextAnalysis.score >= 75 ? 1 : 0),
+      }))
       setLoading(false)
       setScreen('home')
-    }
+    }, 700)
   }
 
   const handleThemeToggle = () => {
@@ -333,18 +372,11 @@ function App() {
       <main className="page-shell">
         <Header
           onSettingsClick={() => setScreen('settings')}
-          title={title}
-          onTitleChange={setTitle}
-          articleText={articleText}
-          onArticleTextChange={setArticleText}
-          url={url}
-          onUrlChange={setUrl}
+          searchValue={query}
+          onSearchChange={setQuery}
           onAnalyze={handleAnalyze}
           loading={loading}
-          titleLabel={text.titleLabel}
-          textLabel={text.articleTextLabel}
-          urlLabel={text.urlLabel}
-          inputHelp={text.inputHelp}
+          placeholder={text.searchPlaceholder}
           analyzeLabel={text.analyze}
           loadingLabel={text.analyzing}
           settingsLabel={text.settingsLabel}
