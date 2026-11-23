@@ -1,7 +1,10 @@
 function DonutChart({ percentage, label, size = 220 }) {
   const radius = 72
   const circumference = 2 * Math.PI * radius
-  const dashScore = (percentage / 100) * circumference
+  const safePercentage = Number.isFinite(Number(percentage))
+    ? Math.min(Math.max(Number(percentage), 0), 100)
+    : 0
+  const dashScore = (safePercentage / 100) * circumference
 
   return (
     <div className="donut-wrapper">
@@ -18,7 +21,7 @@ function DonutChart({ percentage, label, size = 220 }) {
       </svg>
 
       <div className="donut-center">
-        <div className="donut-percent">{percentage}%</div>
+        <div className="donut-percent">{safePercentage}%</div>
         <div className="donut-label">{label}</div>
       </div>
     </div>

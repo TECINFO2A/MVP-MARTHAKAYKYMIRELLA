@@ -723,11 +723,22 @@
 
 @media (max-width: 640px) {
   .page-shell {
-    padding-inline: 14px;
+    padding-inline: 12px;
   }
 
   .topbar {
-    padding: 14px 14px 16px;
+    position: relative;
+    padding: 14px 12px 16px;
+  }
+
+  .topbar .logo-block {
+    padding-right: 58px;
+  }
+
+  .topbar .settings-button {
+    position: absolute;
+    top: 14px;
+    right: 12px;
   }
 
   .search-panel {
@@ -741,12 +752,21 @@
   }
 
   .input-actions {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
   }
 
+  .input-actions .search-button {
+    width: 100%;
+  }
+
   .search-button {
+    min-height: 46px;
     padding-inline: 12px;
+  }
+
+  .article-input {
+    min-height: 120px !important;
   }
 
   .meta-list,
