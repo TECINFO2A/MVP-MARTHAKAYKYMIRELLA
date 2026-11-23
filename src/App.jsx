@@ -220,15 +220,16 @@ function createLocalAnalysis(input, language) {
   const isWarning = warningPatterns.test(normalized)
   const isTrusted = trustedPatterns.test(normalized)
   const hash = Array.from(normalized).reduce((value, character) => ((value * 31) + character.charCodeAt(0)) >>> 0, 17)
-  const variation = (Date.now() % 13) + (hash % 9)
+  const randomSeed = Math.floor(Math.random() * 31)
+  const requestVariation = (Date.now() % 19) + (hash % 11) + randomSeed
 
   let level = 'atenção'
-  let score = 35 + (variation % 25)
+  let score = 24 + (requestVariation % 37)
   let reasons
 
   if (isWarning) {
     level = 'falsa'
-    score = Math.min(88, 58 + variation)
+    score = Math.min(92, 55 + (requestVariation % 38))
     reasons = language === 'en'
       ? ['The text contains sensational or urgent wording.', 'Caution is advised before sharing.']
       : language === 'es'
@@ -236,7 +237,7 @@ function createLocalAnalysis(input, language) {
         : ['O texto contém linguagem sensacionalista ou urgente.', 'É recomendada cautela antes de compartilhar.']
   } else if (isTrusted) {
     level = 'confiável'
-    score = Math.min(88, 68 + variation)
+    score = Math.min(94, 65 + (requestVariation % 30))
     reasons = language === 'en'
       ? ['The text mentions an institutional or verifiable source.', 'The wording suggests a more cautious assessment.']
       : language === 'es'
