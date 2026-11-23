@@ -6,7 +6,13 @@ function Header({ onSettingsClick, searchValue, onSearchChange, onAnalyze, loadi
         <span className="logo-subtitle">Pense. Verifique. Compartilhe.</span>
       </div>
 
-      <div className="search-panel">
+      <form
+        className="search-panel"
+        onSubmit={(event) => {
+          event.preventDefault()
+          onAnalyze()
+        }}
+      >
         <input
           type="text"
           value={searchValue}
@@ -15,10 +21,10 @@ function Header({ onSettingsClick, searchValue, onSearchChange, onAnalyze, loadi
           placeholder={placeholder}
           aria-label={placeholder || 'Pesquisar notícia'}
         />
-        <button type="button" className="search-button" onClick={onAnalyze} disabled={loading} aria-label={analyzeLabel}>
+        <button type="submit" className="search-button" disabled={loading} aria-label={analyzeLabel}>
           {loading ? '⏳' : '🔍'} {loading ? loadingLabel : analyzeLabel}
         </button>
-      </div>
+      </form>
 
       <button type="button" className="settings-button" onClick={onSettingsClick} aria-label={settingsLabel}>
         ⚙️

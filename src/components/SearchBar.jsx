@@ -1,6 +1,12 @@
 function SearchBar({ value, onChange, onAnalyze, loading, placeholder, analyzeLabel }) {
   return (
-    <div className="searchbar-wrap">
+    <form
+      className="searchbar-wrap"
+      onSubmit={(event) => {
+        event.preventDefault()
+        onAnalyze()
+      }}
+    >
       <label className="sr-only" htmlFor="news-search">
         {placeholder}
       </label>
@@ -13,10 +19,10 @@ function SearchBar({ value, onChange, onAnalyze, loading, placeholder, analyzeLa
         className="searchbar-input"
         aria-label={placeholder}
       />
-      <button type="button" className="primary-button" onClick={onAnalyze} disabled={loading}>
+      <button type="submit" className="primary-button" disabled={loading}>
         {loading ? '⏳' : '🔍'} {loading ? 'Analisando...' : analyzeLabel}
       </button>
-    </div>
+    </form>
   )
 }
 
